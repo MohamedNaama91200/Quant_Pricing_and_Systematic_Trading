@@ -1,0 +1,15 @@
+# Core libraries
+numpy==1.23.5
+pandas==1.5.3
+scipy==1.10.0
+
+# Financial libraries
+yfinance==0.2.18
+
+# Visualization libraries
+matplotlib==3.7.1
+seaborn==0.12.2
+plotly==5.15.0
+
+# Streamlit for the web app
+streamlit==1.25.0
