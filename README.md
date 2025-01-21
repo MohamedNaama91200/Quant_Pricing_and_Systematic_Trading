@@ -83,5 +83,7 @@ PFE/
 - Design and validation of one or more trading algorithms.
 - A final report analyzing the accuracy of the models and the performance of the algorithms in various market scenarios.
 
+
+PS pour Moha: J'arrive pas a creer de dossiers mdrrr donc je peux pas rajouter tout mon code 
 ## Authors
 Jonathan Level and Mohamed Naama
