@@ -37,9 +37,10 @@ def get_options_dataframe(ticker,option_type='call'):
 
     # TTM en années
     today = datetime.today()
+
     all_options['TTM'] = all_options['maturity'].apply(
-        lambda x: (datetime.strptime(x, "%Y-%m-%d") - today).days / 365
-    )
+        lambda x: (datetime.strptime(x, "%Y-%m-%d").replace(hour=22,minute=00) - today).total_seconds() /(365*24*3600)
+    ) #22h = 16h à NY donc close du Nasdaq
 
     all_calls = all_options[['TTM', 'strike', 'lastPrice']]
 

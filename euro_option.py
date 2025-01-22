@@ -83,7 +83,7 @@ class EuropeanOption:
         local_vol = LocalVol(market_prices=market_df,r=self.r)
 
         # Obtention de la volatilité locale pour le strike et la maturité de l'option
-        sigma_local = local_vol.get_local_vol()
+        sigma_local = local_vol.get_local_vol(T=self.T,K=self.K)
 
         # Calcul du prix de l'option avec Black-Scholes et la volatilité locale
         return self.black_scholes_pricing(vol=sigma_local)
