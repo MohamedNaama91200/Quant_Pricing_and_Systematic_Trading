@@ -7,21 +7,19 @@ S0 = get_latest_price(ticker='AAPL')
 r_risk_free = get_risk_free_rate()
 sigma = get_realized_vol(ticker='AAPL')
 
-print(option_data_df)
 print(S0)
-print(r_risk_free)
-print(sigma)
 
 #Instanciate an European Option Call
 
-CE_Option = EuropeanOption(S=S0,K=229.145,T=0.019178,r=r_risk_free,sigma=sigma,Option_Type='call')
-
+CE_Option = EuropeanOption(S=S0,K=option_data_df['strike'].iloc[-501],T=option_data_df['TTM'].iloc[-501],r=r_risk_free,sigma=sigma,Option_Type='call')
+print(option_data_df['strike'].iloc[-501])
+print(option_data_df['TTM'].iloc[-501])
+print(option_data_df['lastPrice'].iloc[-501])
 #Pricing Using BS
 
 
-#price_bs = CE_Option.black_scholes_pricing()
-#print(option_data_df.iloc[100:120])
-#print(price_bs)
+price_bs = CE_Option.black_scholes_pricing()
+print(price_bs)
 
 #Pricing Using Local Volatility
 
