@@ -77,16 +77,39 @@ class EuropeanOption:
 
         return C
 
-    def price_with_local_vol(self,market_df):
-        #Dupire Formula
+    def price_with_local_vol(self,market_df,num_paths = 10000, num_steps = 100):
+
         #The dataframe containing : TTM, Strikes, Prices. False by default
-        local_vol = LocalVol(market_prices=market_df,r=self.r)
+        lv_surface = LocalVol(market_prices=market_df,r=self.r)
 
-        # Obtention de la volatilité locale pour le strike et la maturité de l'option
-        sigma_local = local_vol.get_local_vol(T=self.T,K=self.K)
 
-        # Calcul du prix de l'option avec Black-Scholes et la volatilité locale
-        return self.black_scholes_pricing(vol=sigma_local)
+        dt = self.T / num_steps
+        S_paths = np.zeros((num_paths, num_steps + 1))
+        S_paths[:, 0] = self.S
+
+
+        # Monte-Carlo to simulate the underlying using the SDE with sigma_local
+        for i in range(1,num_steps):
+            t = i * dt
+            # Compute the local volatility for each path given the current asset price.
+            sigma_local = np.array([lv_surface.get_local_vol(t, s) for s in S_paths[:, i]])
+            # If the local volatility cannot be computed (NaN), use the constant sigma as a fallback.
+            sigma_local = np.where(np.isnan(sigma_local), self.sigma, sigma_local)
+
+            # Generate Brownian increments.
+            dW = np.random.normal(0, np.sqrt(dt), size=num_paths)
+            # Use the Euler-Maruyama scheme with the log-Euler discretization.
+            S_paths[:, i + 1] = S_paths[:, i] * np.exp((self.r - 0.5 * sigma_local ** 2) * dt + sigma_local * dW)
+
+        # Compute the payoff at maturity.
+        if self.Option_Type == 'call':
+            payoffs = np.maximum(S_paths[:, -1] - self.K, 0)
+        else:
+            payoffs = np.maximum(self.K - S_paths[:, -1], 0)
+
+        # Discount the average payoff back to present value.
+        price = np.exp(-self.r * self.T) * np.mean(payoffs)
+        return price
 
 
 
