@@ -42,7 +42,7 @@ def get_options_dataframe(ticker,option_type='call'):
         lambda x: (datetime.strptime(x, "%Y-%m-%d").replace(hour=22,minute=00) - today).total_seconds() /(365*24*3600)
     ) #22h = 16h à NY donc close du Nasdaq
 
-    all_calls = all_options[['TTM', 'strike', 'lastPrice']]
+    all_calls = all_options[['TTM', 'strike', 'lastPrice','impliedVolatility']]
 
     return all_calls
 @lru_cache(maxsize=None)

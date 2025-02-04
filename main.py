@@ -11,17 +11,18 @@ print(S0)
 
 #Instanciate an European Option Call
 
-CE_Option = EuropeanOption(S=S0,K=option_data_df['strike'].iloc[-501],T=option_data_df['TTM'].iloc[-501],r=r_risk_free,sigma=sigma,Option_Type='call')
-print(option_data_df['strike'].iloc[-501])
-print(option_data_df['TTM'].iloc[-501])
-print(option_data_df['lastPrice'].iloc[-501])
+option_data_df_test = option_data_df.iloc[-500]
+CE_Option = EuropeanOption(S=S0,K=option_data_df_test['strike'],T=option_data_df_test['TTM'],r=r_risk_free,sigma=sigma,Option_Type='call')
+print(option_data_df_test)
 #Pricing Using BS
 
 
 price_bs = CE_Option.black_scholes_pricing()
-print(price_bs)
+print(f"Price BS : {price_bs}")
 
 #Pricing Using Local Volatility
 
-price_dupire = CE_Option.price_with_local_vol(market_df=option_data_df)
-print(price_dupire)
+price_dupire,sigma_local= CE_Option.price_with_local_vol(market_df=option_data_df)
+print(f"Price Dupire : {price_dupire}")
+print(sigma_local)
+print(sigma)

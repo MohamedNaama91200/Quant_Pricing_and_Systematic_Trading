@@ -32,7 +32,7 @@ class LocalVol:
         TTM = self.maturities
         Strike = self.strikes
         C_market = self.market_prices['lastPrice'].values
-        delta = 10**-1
+        delta = 10**-3
 
         # Création de l'interpolateur 2D
         interpolator = CloughTocher2DInterpolator((TTM, Strike), C_market)

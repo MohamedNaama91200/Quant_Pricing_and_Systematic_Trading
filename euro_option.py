@@ -23,9 +23,9 @@ class EuropeanOption:
         self.N_Heston = N_Heston# 252  # Nombre de pas (1 par jour pour 1 an)
         self.M_Heston = M_Heston #10000  # Nombre de simulations Monte-Carlo
 
-    def black_scholes_pricing(self,vol='constant'):
+    def black_scholes_pricing(self,vol=1000000):
 
-        if vol == 'constant' :
+        if vol == 1000000 :
             vol = self.sigma
 
         # Calcul des paramètres d1 et d2
@@ -86,7 +86,7 @@ class EuropeanOption:
         sigma_local = local_vol.get_local_vol(T=self.T,K=self.K)
 
         # Calcul du prix de l'option avec Black-Scholes et la volatilité locale
-        return self.black_scholes_pricing(vol=sigma_local)
+        return self.black_scholes_pricing(vol=sigma_local),sigma_local
 
 
 
