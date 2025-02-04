@@ -20,7 +20,6 @@ class LocalVol:
         self.local_vol_surface = None
     @staticmethod
     def C(T, K,interpolator):
-        print(interpolator(T, K))
         if interpolator(T, K) == interpolator(T, K) :
             return interpolator(T, K)
 
