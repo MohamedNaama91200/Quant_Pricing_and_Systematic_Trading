@@ -1,12 +1,12 @@
-import math
-from scipy.stats import norm
 import numpy as np
+import black_scholes
 from local_volatiliy import LocalVol
+from sabr import SABRModel
 class EuropeanOption:
 
     def __init__(self,S,K,T,r,sigma,Option_Type,
                  N_Heston=252,v0=0.04,kappa=2.0,v_bar=0.04,gamma=0.5,
-                 rho=-0.7,M_Heston=10000,market_df=False):
+                 rho=-0.7,M_Heston=10000,dividend_yield=0):
         self.S = S #Spot price
         self.K = K #Strike
         self.T = T #Time to Maturity
@@ -22,26 +22,15 @@ class EuropeanOption:
         self.rho = rho #"-0.7  # Corrélation entre les processus
         self.N_Heston = N_Heston# 252  # Nombre de pas (1 par jour pour 1 an)
         self.M_Heston = M_Heston #10000  # Nombre de simulations Monte-Carlo
+        self.dividend_yield = dividend_yield
 
-    def black_scholes_pricing(self,vol='constant'):
 
-        if vol == 'constant' :
+    def black_scholes_pricing(self,vol=10000000000):
+
+        if vol == 10000000000 :
             vol = self.sigma
 
-        # Calcul des paramètres d1 et d2
-        d1 = (math.log(self.S / self.K) + (self.r + (vol ** 2) / 2) * self.T) / (vol * math.sqrt(self.T))
-        d2 = d1 - vol * math.sqrt(self.T)
-
-        if self.Option_Type == "call":
-            # Prix du call
-            price = self.S * norm.cdf(d1) - self.K * math.exp(-self.r * self.T) * norm.cdf(d2)
-        elif self.Option_Type == "put":
-            # Prix du put
-            price = self.K * math.exp(-self.r * self.T) * norm.cdf(-d2) - self.S* norm.cdf(-d1)
-        else:
-            raise ValueError("option_type doit être 'call' ou 'put'")
-
-        return price
+        return black_scholes.black_scholes_pricing(S=self.S,K=self.K,T=self.T,r=self.r,sigma=vol,Option_Type=self.Option_Type)
 
     def heston_monte_carlo_pricing(self):
 
@@ -77,11 +66,13 @@ class EuropeanOption:
 
         return C
 
-    def price_with_local_vol(self,market_df,num_paths = 10000, num_steps = 100):
+    def price_with_local_vol(self,market_df):
 
         #The dataframe containing : TTM, Strikes, Prices. False by default
         lv_surface = LocalVol(market_prices=market_df,r=self.r)
+        sigma_local = lv_surface.get_local_vol(T=self.T,K=self.K)
 
+        """
 
         dt = self.T / num_steps
         S_paths = np.zeros((num_paths, num_steps + 1))
@@ -89,7 +80,7 @@ class EuropeanOption:
 
 
         # Monte-Carlo to simulate the underlying using the SDE with sigma_local
-        for i in range(1,num_steps):
+        for i in range(num_steps):
             t = i * dt
             # Compute the local volatility for each path given the current asset price.
             sigma_local = np.array([lv_surface.get_local_vol(t, s) for s in S_paths[:, i]])
@@ -100,6 +91,8 @@ class EuropeanOption:
             dW = np.random.normal(0, np.sqrt(dt), size=num_paths)
             # Use the Euler-Maruyama scheme with the log-Euler discretization.
             S_paths[:, i + 1] = S_paths[:, i] * np.exp((self.r - 0.5 * sigma_local ** 2) * dt + sigma_local * dW)
+            print(f"Steps {i} / {num_steps-1} completed")
+
 
         # Compute the payoff at maturity.
         if self.Option_Type == 'call':
@@ -109,7 +102,17 @@ class EuropeanOption:
 
         # Discount the average payoff back to present value.
         price = np.exp(-self.r * self.T) * np.mean(payoffs)
-        return price
+        """
+
+        return self.black_scholes_pricing(vol=sigma_local),sigma_local
+
+    def price_with_sabr(self):
+
+
+
+
+
+        sabr = SABRModel()
 
 
 
