@@ -104,10 +104,6 @@ class SABRModel:
         return black_scholes.black_scholes_pricing(S=self.F, K=K, T=self.T, r=risk_free_rate, sigma=sigma_sabr,Option_Type=option_type)
 
 
-
-
-
-
 if __name__ == '__main__':
     # For each unique time-to-maturity, we will calibrate the SABR model.
     calibrated_results = {}  # To store calibrated SABR parameters by TTM
@@ -116,7 +112,7 @@ if __name__ == '__main__':
     #Loading Data
     option_data_df = get_options_dataframe(ticker='AAPL', option_type='call')
     spot_price = get_latest_price(ticker='AAPL')
-    r_risk_free = get_risk_free_rate()
+    r_risk_free = 0.0423#get_risk_free_rate()
     sigma = get_realized_vol(ticker='AAPL')
     dividend_yield = get_dividend_yield(ticker='AAPL')
 

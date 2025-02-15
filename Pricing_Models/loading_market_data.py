@@ -83,10 +83,6 @@ def get_dividend_yield(ticker) :
         return 0
 
 
-# loading_futures_options_data.py
-import yfinance as yf
-import pandas as pd
-from datetime import datetime
 
 
 @lru_cache(maxsize=None)
