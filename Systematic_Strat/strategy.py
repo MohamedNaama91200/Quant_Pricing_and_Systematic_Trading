@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import calculate_spread
+from utils import calculate_spread,calculate_metrics
 import pandas as pd
 import itertools
 
@@ -222,7 +222,7 @@ def backtest_asset_class_trend(prices_df,
                                initial_capital=100000,
                                factor_weighting=True,
                                factor_weighting_method="momentum_carry",
-                               top_n_assets=3,allocation_type='vol_adj_weights',max_drawdown=0.01,plotting=True):
+                               top_n_assets=3,allocation_type='vol_adj_weights',exposure_reduction=0.5,max_drawdown_threshold=0.1,plotting=True):
     """
     Backtests an asset class trend following strategy with Factor-Based Asset Selection.
     - Uses a moving average (SMA) trend-following rule.
@@ -240,6 +240,8 @@ def backtest_asset_class_trend(prices_df,
       factor_weighting: Whether to rank assets based on momentum & carry (default True).
       factor_weighting_method: Factor ranking method ('momentum_carry' or 'momentum_only').
       top_n_assets: Number of top-ranked assets to select per rebalancing.
+      max_drawdown_threshold : the maximum drawdown in a day that we accept, before gradually de-risking
+      exposure_reduction : the exposure reduction, meaning if in date d we exceed the drawdown threshold, we gradually reduce the exposure until exposure_reduction
 
     Returns:
       DataFrame with portfolio value, daily return, PnL, and drawdown.
@@ -334,22 +336,29 @@ def backtest_asset_class_trend(prices_df,
     # Forward-fill positions for days between rebalancing dates.
     positions = positions.ffill().fillna(0.0)
 
-    # --- Compute Daily Returns ---
-    returns = prices_df[tickers].pct_change().fillna(0)
-    daily_portfolio_return = (positions.shift(1) * returns).sum(axis=1)
 
-    # --- Account for Transaction Costs ---
-    turnover = positions.diff().abs().sum(axis=1)
-    daily_tc = transaction_cost * turnover
-    net_daily_return = daily_portfolio_return - daily_tc
+    cumulative_returns,pnl = calculate_metrics(prices_df,tickers,positions,initial_capital,transaction_cost)[:2]
 
-    # --- Calculate Portfolio Value & Performance Metrics ---
-    cumulative_returns = (1 + net_daily_return).cumprod() * initial_capital
-    pnl = cumulative_returns.diff().fillna(0)
-    total_return = cumulative_returns.iloc[-1] - initial_capital
+    # --- Rolling Drawdown-Based De-Risking ---
+    cumax = cumulative_returns.cummax()
+    rolling_dd = (cumax - cumulative_returns) / cumax#(cumulative_returns / cumulative_returns.cummax()) - 1
+
+    for date in rolling_dd.index:
+        if rolling_dd.loc[date] >= max_drawdown_threshold: #we have exceed the drawdown limit at the close of day d
+            next_idx = rolling_dd.index.get_loc(date) + 1
+            reduction_days = 3  # Reduce exposure over 3 days
+            for i in range(1, reduction_days + 1):
+                future_idx = next_idx + i
+                if future_idx < len(rolling_dd.index):
+                    future_date = rolling_dd.index[future_idx]
+                    positions.loc[future_date] *= exposure_reduction ** (i / reduction_days)  # Gradual scaling
+
+    #Recompute metrics with new positions after rolling drawdown de-risking
 
     # Annualized Sharpe ratio
-    sharpe_ratio = (net_daily_return.mean() / net_daily_return.std()) * np.sqrt(252) if net_daily_return.std() != 0 else np.nan
+    cumulative_returns,pnl,max_drawdown,sharpe_ratio,net_daily_return = calculate_metrics(
+        prices_df, tickers, positions, initial_capital, transaction_cost
+    )
 
     # Calculate drawdown
     cum_max = cumulative_returns.cummax()
@@ -357,7 +366,7 @@ def backtest_asset_class_trend(prices_df,
     max_drawdown = drawdown.max()
 
     # Print performance metrics
-    print(f"Total Net Return: {total_return:.2f}")
+    print(f"Total Net Return: {(cumulative_returns.iloc[-1] / initial_capital - 1) * 100:.2f} %")
     print(f"Sharpe Ratio: {sharpe_ratio:.2f}")
     print(f"Maximum Drawdown: {max_drawdown:.2%}")
 
@@ -427,7 +436,7 @@ def backtest_static_equal_weighted_benchmark(prices_df,
 
     # Compute cumulative PnL
     pnl = portfolio_value.diff().fillna(0)
-    total_return = portfolio_value.iloc[-1] - initial_capital
+    #total_return = portfolio_value.iloc[-1] - initial_capital
 
     # Compute Sharpe Ratio
     sharpe_ratio = (daily_portfolio_return.mean() / daily_portfolio_return.std()) * np.sqrt(
@@ -439,7 +448,7 @@ def backtest_static_equal_weighted_benchmark(prices_df,
     max_drawdown = drawdown.max()
 
     # Print Performance Metrics
-    print(f"Total Net Return: {total_return:.2f}")
+    print(f"Total Net Return: {(portfolio_value.iloc[-1] / initial_capital - 1)*100:.2f} %")
     print(f"Sharpe Ratio: {sharpe_ratio:.2f}")
     print(f"Maximum Drawdown: {max_drawdown:.2%}")
 
@@ -466,13 +475,6 @@ def backtest_static_equal_weighted_benchmark(prices_df,
     return results
 
 
-# Example usage:
-# Suppose you have a DataFrame `prices_df` with a DateTimeIndex and columns: "SPY", "EFA", "IEF", "VNQ", "GSG".
-# You can then run:
-#
-# results = backtest_asset_class_trend(prices_df)
-#
-# This will print the performance statistics and display the cumulative portfolio value chart.
 
 
 if __name__ == "__main__":
@@ -496,18 +498,20 @@ if __name__ == "__main__":
 
     if False :
         # Define parameter ranges
-        sma_periods = [100, 125, 150, 175, 200]  # Different SMA periods
-        balancing_frequencies = ['weekly', 'monthly']  # Rebalancing frequency
-        factor_methods = ["momentum_only", "momentum_carry","momentum_6M","momentum_12M"]  # Factor weighting
-        top_n_assets_list = [1,2, 3, 4, 5]  # Number of top assets selected
-        allocation_type_list = ['vol_adj_weights','equal_weights']
+        sma_periods = [175]#[100, 125, 150, 175, 200]  # Different SMA periods
+        balancing_frequencies = ['weekly']  # Rebalancing frequency balancing_frequencies = ['weekly', 'monthly']  # Rebalancing frequency
+        factor_methods = ["momentum_12M"]  # Factor weighting ["momentum_only", "momentum_carry","momentum_6M",]
+        top_n_assets_list = [2]  # Number of top assets selected [1,2, 3, 4, 5]
+        allocation_type_list = ['vol_adj_weights']#,'equal_weights']
+        max_drawdown_list = [0.05,0.1,0.15,0.2]
+        exposure_list = [0,0.1,0.2,0.5,0.8]
 
         # Store results
         results_list = []
 
         # Iterate over all parameter combinations
-        for sma_period, balancing_freq, factor_method, top_n_assets,allocation_type in itertools.product(
-                sma_periods, balancing_frequencies, factor_methods, top_n_assets_list,allocation_type_list):
+        for sma_period, balancing_freq, factor_method, top_n_assets,allocation_type,max_dr,expo in itertools.product(
+                sma_periods, balancing_frequencies, factor_methods, top_n_assets_list,allocation_type_list,max_drawdown_list,exposure_list):
             print(f"Testing: SMA={sma_period}, Freq={balancing_freq}, Factor={factor_method}, TopN={top_n_assets}")
 
             # Run backtest
@@ -521,6 +525,8 @@ if __name__ == "__main__":
                 top_n_assets=top_n_assets,
                 initial_capital=100000,
                 allocation_type=allocation_type,
+                max_drawdown_threshold=max_dr,
+                exposure_reduction=expo,
                 plotting=False
             )
 
@@ -536,7 +542,9 @@ if __name__ == "__main__":
                 "Top N Assets": top_n_assets,
                 "Sharpe Ratio": sharpe_ratio,
                 "Max Drawdown": max_drawdown,
-                "Alloc Type": allocation_type
+                "Alloc Type": allocation_type,
+                "Exposure":expo,
+                "Drawdown" : max_dr
             })
 
         # Convert results to DataFrame
@@ -547,8 +555,8 @@ if __name__ == "__main__":
 
         print(best_results.head(1).to_string())
 
-    sma_strat = backtest_asset_class_trend(prices_df,tickers=[key for key in symbols_index.keys()],sma_period=175,balancing_freq='weekly',
+    sma_strat = backtest_asset_class_trend(prices_df,tickers=[key for key in symbols_index.keys()],sma_period=175,balancing_freq='weekly',factor_weighting=True,
                                            factor_weighting_method="momentum_12M",transaction_cost=0.001,top_n_assets=2,
-                                         initial_capital=100000,allocation_type='vol_adj_weights')
+                                         initial_capital=100000,allocation_type='vol_adj_weights',exposure_reduction=0.5,max_drawdown_threshold=0.05)
 
     benchmark = backtest_static_equal_weighted_benchmark(prices_df=prices_df,tickers=[key for key in symbols_index.keys()],transaction_cost=0.001,initial_capital=100000)
