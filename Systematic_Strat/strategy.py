@@ -292,11 +292,13 @@ def backtest_asset_class_trend(prices_df,
             prices_df.index.isocalendar().year,
             prices_df.index.isocalendar().week
         ]).head(1).index
-    else:
+    elif balancing_freq == 'monthly':
         rebal_dates = prices_df.groupby([
             prices_df.index.year,
             prices_df.index.month
         ]).head(1).index
+    else:
+        raise ValueError('Balancing frequency must be : "monthly" or "weekly" ')
 
     # Compute 20-day realized volatility for each asset
     realized_vol = prices_df[tickers].pct_change().rolling(20).std()
@@ -337,15 +339,15 @@ def backtest_asset_class_trend(prices_df,
     positions = positions.ffill().fillna(0.0)
 
 
-    cumulative_returns,pnl = calculate_metrics(prices_df,tickers,positions,initial_capital,transaction_cost)[:2]
+    cumulative_returns = calculate_metrics(prices_df,tickers,positions,initial_capital,transaction_cost)[0]
 
     # --- Rolling Drawdown-Based De-Risking ---
     cumax = cumulative_returns.cummax()
-    rolling_dd = (cumax - cumulative_returns) / cumax#(cumulative_returns / cumulative_returns.cummax()) - 1
+    rolling_dd = (cumax - cumulative_returns) / cumax
 
     for date in rolling_dd.index:
         if rolling_dd.loc[date] >= max_drawdown_threshold: #we have exceed the drawdown limit at the close of day d
-            next_idx = rolling_dd.index.get_loc(date) + 1
+            next_idx = rolling_dd.index.get_loc(date)
             reduction_days = 3  # Reduce exposure over 3 days
             for i in range(1, reduction_days + 1):
                 future_idx = next_idx + i
