@@ -342,18 +342,37 @@ def backtest_asset_class_trend(prices_df,
     cumulative_returns = calculate_metrics(prices_df,tickers,positions,initial_capital,transaction_cost)[0]
 
     # --- Rolling Drawdown-Based De-Risking ---
-    cumax = cumulative_returns.cummax()
-    rolling_dd = (cumax - cumulative_returns) / cumax
 
+    #cumax = cumulative_returns.cummax()
+    #rolling_dd = (cumax - cumulative_returns) / cumax
+    rolling_peak = cumulative_returns.rolling(window=120, min_periods=1).max()  # 6-month rolling peak
+    rolling_dd = (rolling_peak - cumulative_returns) / rolling_peak
+
+    processed_dates = set()  # Keep track of modified dates, goal is to not reduce the exposure twice in the backtest
     for date in rolling_dd.index:
-        if rolling_dd.loc[date] >= max_drawdown_threshold: #we have exceed the drawdown limit at the close of day d
+        if rolling_dd.loc[date] >= max_drawdown_threshold:  # Drawdown limit exceeded
             next_idx = rolling_dd.index.get_loc(date)
-            reduction_days = 3  # Reduce exposure over 3 days
+            reduction_days = 2  # Reduce exposure over 3 days
             for i in range(1, reduction_days + 1):
                 future_idx = next_idx + i
                 if future_idx < len(rolling_dd.index):
                     future_date = rolling_dd.index[future_idx]
-                    positions.loc[future_date] *= exposure_reduction ** (i / reduction_days)  # Gradual scaling
+                    # Check if future_date has already been modified
+                    if future_date not in processed_dates:
+                        positions.loc[future_date] *= exposure_reduction * (i / reduction_days)
+                        processed_dates.add(future_date)  # Mark as modified
+
+            # After finishing the x-day reduction, forward-fill until next rebal date
+            last_reduction_idx = next_idx + reduction_days
+            if last_reduction_idx < len(rolling_dd.index):
+                final_reduction_day = rolling_dd.index[last_reduction_idx]
+
+                # Find the next rebal date after final_reduction_day
+                rebal_after = rebal_dates[rebal_dates > final_reduction_day]
+                if len(rebal_after) > 0:
+                    next_rebal_day = rebal_after[0]
+                    # Forward-fill the final reduced positions up to (but not including) next_rebal_day
+                    positions.loc[final_reduction_day:next_rebal_day] = positions.loc[final_reduction_day].values
 
     #Recompute metrics with new positions after rolling drawdown de-risking
 
@@ -505,8 +524,8 @@ if __name__ == "__main__":
         factor_methods = ["momentum_12M"]  # Factor weighting ["momentum_only", "momentum_carry","momentum_6M",]
         top_n_assets_list = [2]  # Number of top assets selected [1,2, 3, 4, 5]
         allocation_type_list = ['vol_adj_weights']#,'equal_weights']
-        max_drawdown_list = [0.05,0.1,0.15,0.2]
-        exposure_list = [0,0.1,0.2,0.5,0.8]
+        max_drawdown_list = [0.05,0.1,0.15,0.2,0.3]
+        exposure_list = [0,0.1,0.2,0.5,0.75,1]
 
         # Store results
         results_list = []
@@ -559,6 +578,6 @@ if __name__ == "__main__":
 
     sma_strat = backtest_asset_class_trend(prices_df,tickers=[key for key in symbols_index.keys()],sma_period=175,balancing_freq='weekly',factor_weighting=True,
                                            factor_weighting_method="momentum_12M",transaction_cost=0.001,top_n_assets=2,
-                                         initial_capital=100000,allocation_type='vol_adj_weights',exposure_reduction=0.5,max_drawdown_threshold=0.05)
+                                         initial_capital=100000,allocation_type='vol_adj_weights',exposure_reduction=0.5,max_drawdown_threshold=0.1)
 
     benchmark = backtest_static_equal_weighted_benchmark(prices_df=prices_df,tickers=[key for key in symbols_index.keys()],transaction_cost=0.001,initial_capital=100000)
