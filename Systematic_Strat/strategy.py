@@ -343,8 +343,6 @@ def backtest_asset_class_trend(prices_df,
 
     # --- Rolling Drawdown-Based De-Risking ---
 
-    #cumax = cumulative_returns.cummax()
-    #rolling_dd = (cumax - cumulative_returns) / cumax
     rolling_peak = cumulative_returns.rolling(window=120, min_periods=1).max()  # 6-month rolling peak
     rolling_dd = (rolling_peak - cumulative_returns) / rolling_peak
 
@@ -361,7 +359,6 @@ def backtest_asset_class_trend(prices_df,
                     if future_date not in processed_dates:
                         positions.loc[future_date] *= exposure_reduction * (i / reduction_days)
                         processed_dates.add(future_date)  # Mark as modified
-
             # After finishing the x-day reduction, forward-fill until next rebal date
             last_reduction_idx = next_idx + reduction_days
             if last_reduction_idx < len(rolling_dd.index):
@@ -373,6 +370,14 @@ def backtest_asset_class_trend(prices_df,
                     next_rebal_day = rebal_after[0]
                     # Forward-fill the final reduced positions up to (but not including) next_rebal_day
                     positions.loc[final_reduction_day:next_rebal_day] = positions.loc[final_reduction_day].values
+
+            #Recomputing cum returns
+            cumulative_returns = calculate_metrics(prices_df, tickers, positions, initial_capital, transaction_cost)[0]
+            # Immediately update rolling drawdown after new cumulative returns
+            rolling_peak = cumulative_returns.rolling(window=120, min_periods=1).max()
+            rolling_dd = (rolling_peak - cumulative_returns) / rolling_peak
+
+
 
     #Recompute metrics with new positions after rolling drawdown de-risking
 

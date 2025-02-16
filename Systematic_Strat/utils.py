@@ -1,4 +1,5 @@
 #Utils functions
+import pandas as pd
 from statsmodels.api import OLS, add_constant
 import numpy as np
 
@@ -50,6 +51,16 @@ def calculate_metrics(prices_df,tickers,positions,initial_capital,transaction_co
 
     return cumulative_returns,pnl,max_drawdown,sharpe_ratio,net_daily_return
 
+if __name__ == "__main__":
+
+    d = {'a': "1", 'b': "2", 'c': "3"}
+    rolling_dd = pd.Series(data=d, index=['a', 'b', 'c'])
+
+    for date in rolling_dd.index :
+
+        print(rolling_dd.loc[date])
+
+        rolling_dd.iloc[-1] = f"epepep_{date}"
 
 
 
