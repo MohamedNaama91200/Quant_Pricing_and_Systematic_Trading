@@ -1,4 +1,4 @@
-# Implementation and Simulation of Stochastic Models in Finance using Python
+# Option pricing models and Systematic Trading Strategies
 
 ## Project Overview
 
