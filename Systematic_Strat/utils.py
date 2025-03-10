@@ -1,27 +1,23 @@
 #Utils functions
+import pandas as pd
 from statsmodels.api import OLS, add_constant
 import numpy as np
 
 def calculate_spread(prices_df,symbol_y="TTF",symbol_x="EUA"):
     """
-    Calculates the spread between symbol_y and symbol_x using a linear regression model.
+    Calculates the spread between symbol_y and symbol_x.
     """
-
-    # Regression to calculate hedge ratio
-    X = add_constant(prices_df[symbol_x])
-    model = OLS(prices_df[symbol_y], X).fit()
-    beta, intercept = model.params[symbol_x], model.params["const"]
-
-    # Compute the spread
-    prices_df["Spread"] = prices_df[symbol_y] - (beta * prices_df[symbol_x] + intercept)
+    # Regression to calcule the spread without linear regression
+    prices_df["Spread"] = prices_df[symbol_y] - prices_df[symbol_x]
 
     # Compute rolling statistics for Z-score calculation
-    rolling_window = 252  # One-year lookback period
+    rolling_window = 126  # One-year lookback period
     prices_df["Spread_Mean"] = prices_df["Spread"].rolling(rolling_window).mean()
     prices_df["Spread_Std"] = prices_df["Spread"].rolling(rolling_window).std()
     prices_df["Spread_Z"] = (prices_df["Spread"] - prices_df["Spread_Mean"]) / prices_df["Spread_Std"]
 
     prices_df.dropna(inplace=True)
+
     return prices_df
 
 def calculate_metrics(prices_df,tickers,positions,initial_capital,transaction_cost) :
@@ -50,6 +46,16 @@ def calculate_metrics(prices_df,tickers,positions,initial_capital,transaction_co
 
     return cumulative_returns,pnl,max_drawdown,sharpe_ratio,net_daily_return
 
+if __name__ == "__main__":
+
+    d = {'a': "1", 'b': "2", 'c': "3"}
+    rolling_dd = pd.Series(data=d, index=['a', 'b', 'c'])
+
+    for date in rolling_dd.index :
+
+        print(rolling_dd.loc[date])
+
+        rolling_dd.iloc[-1] = f"epepep_{date}"
 
 
 

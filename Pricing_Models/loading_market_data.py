@@ -148,7 +148,9 @@ def get_futures_options_data(ticker='ES=F'):
 # Example usage:
 if __name__ == '__main__':
     df = get_futures_options_data(ticker='CL=F')
-    print(df.head())
+    #print(df.head())
+    g = yf.Ticker('^SPX')
+    print(g.options)
 
 
 
